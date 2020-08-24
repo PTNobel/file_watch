@@ -204,7 +204,10 @@ def main_for_file(args: ProcessedArgs) -> None:
     swapWatch = SwapFilesWatch(args['file'], args['extra_files'])
     args['build'].build()
     if not args['disable_viewer']:
-        subprocess.call(['rifle', pdfname])
+        try:
+            subprocess.call(['rifle', pdfname])
+        except FileNotFoundError:
+            print("rifle not installed.", file=sys.stderr)
     if os.getenv('VIM', False):
         return
 
