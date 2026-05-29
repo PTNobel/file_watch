@@ -2,6 +2,7 @@
 
 import latex_watch
 import pandoc_watch
+import shared_watch
 import sys
 import os
 from threading import Thread
@@ -64,23 +65,40 @@ def processargs(
                 )
         )
     else:
-        # No file name given
+        # No file name given: discover the .tex/.md files vim has open in this
+        # directory and watch them. Vim may write the swap file next to the
+        # file (".foo.tex.swp"), or, as configured on this machine, into a
+        # central swap directory (shared_watch.VIM_SWAP_DIR); check both.
+        cwd = os.getcwd()
+        open_files = []  # type: List[str]
+
         for file_name in os.listdir():
-            if len(file_name) > 9 and file_name[0] == '.' and \
-                    file_name[-8:] == '.tex.swp':
+            if len(file_name) > 5 and file_name[0] == '.' and \
+                    file_name[-4:] == '.swp':
+                open_files.append(os.path.join(cwd, file_name[1:-4]))
+
+        for open_file in shared_watch.vim_swapped_files():
+            if os.path.dirname(open_file) == cwd:
+                open_files.append(open_file)
+
+        seen = set()  # type: set
+        for open_file in open_files:
+            if open_file in seen:
+                continue
+            seen.add(open_file)
+
+            if open_file[-4:] == '.tex':
                 output.append(
                         (
                             latex_watch.main_for_file,
-                            latex_watch.processargs(argv + [file_name[1:-4]])
+                            latex_watch.processargs(argv + [open_file])
                         )
                 )
-
-            if len(file_name) > 8 and file_name[0] == '.' and \
-                    file_name[-7:] == '.md.swp':
+            elif open_file[-3:] == '.md':
                 output.append(
                         (
                             pandoc_watch.main_for_file,
-                            pandoc_watch.processargs(argv + [file_name[1:-4]])
+                            pandoc_watch.processargs(argv + [open_file])
                         )
                 )
     return output

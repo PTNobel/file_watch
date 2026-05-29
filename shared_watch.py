@@ -8,6 +8,38 @@ Recipe = NewType("Recipe", Dict[str, Any])
 MainForFileMethod = Callable[[ProcessedArgs], None]
 FilePair = Tuple[MainForFileMethod, ProcessedArgs]
 
+# Where vim stores swap files on this machine. Vim here is configured with a
+# `directory` ending in '//' (set to ~/.cache/vim/swap//), so swap files do
+# not sit next to the edited file. Instead they live in this single directory,
+# named after the file's absolute path with each '/' replaced by '%' (and any
+# literal '%' doubled), e.g.
+#   /home/me/dir/foo.tex  ->  ~/.cache/vim/swap/%home%me%dir%foo.tex.swp
+VIM_SWAP_DIR = os.path.expanduser('~/.cache/vim/swap')
+
+
+def vim_swap_name(file_name: str) -> str:
+    """Path of the swap file vim creates for *file_name* inside VIM_SWAP_DIR."""
+    encoded = os.path.abspath(file_name).replace('%', '%%').replace('/', '%')
+    return os.path.join(VIM_SWAP_DIR, encoded + '.swp')
+
+
+def vim_swapped_files() -> List[str]:
+    """Absolute paths of the files vim currently has open, discovered from the
+    swap files in VIM_SWAP_DIR (empty if that directory does not exist)."""
+    try:
+        swap_names = os.listdir(VIM_SWAP_DIR)
+    except FileNotFoundError:
+        return []
+
+    open_files = []  # type: List[str]
+    for name in swap_names:
+        if name[-4:] != '.swp':
+            continue
+        # Invert vim's encoding: '%%' is a literal '%'; a lone '%' is a '/'.
+        open_files.append(
+            name[:-4].replace('%%', '\0').replace('%', '/').replace('\0', '%'))
+    return open_files
+
 
 class FileWatch:
     _failed_reads = 0

@@ -128,13 +128,14 @@ class SwapFilesWatch():
     swapsToCheck = []  # type: List[str]
 
     def __init__(self, primaryFile: str, extraFiles: List[str]) -> None:
-        self.swapsToCheck.append(os.path.join(os.path.dirname(primaryFile),
-                                 '.' + os.path.basename(primaryFile) + '.swp'))
-        for singleFile in extraFiles:
+        for singleFile in [primaryFile] + list(extraFiles):
+            # Vim may keep the swap file next to the edited file, or in its
+            # central swap directory (see shared_watch.VIM_SWAP_DIR); watch
+            # both so the build loop keeps running while the file is open.
             self.swapsToCheck.append(os.path.join(
                 os.path.dirname(singleFile),
-                '.' + os.path.basename(singleFile) +
-                '.swp'))
+                '.' + os.path.basename(singleFile) + '.swp'))
+            self.swapsToCheck.append(shared_watch.vim_swap_name(singleFile))
 
     def swapFilesExist(self) -> bool:
         result = bool()
